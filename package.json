@@ -1,0 +1,27 @@
+{
+  "name": "DEXERC20",
+  "version": "1.0.0",
+  "description": "This repo contains a decentralized exchange for ERC20 tokens.",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dawsonsewell/DEX4ERC20.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dawsonsewell/DEX4ERC20/issues"
+  },
+  "homepage": "https://github.com/dawsonsewell/DEX4ERC20#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^3.4.0",
+    "@openzeppelin/test-helpers": "^0.5.10"
+  }
+}
