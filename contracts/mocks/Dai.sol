@@ -1,12 +1,12 @@
-pragma solidity ^0.6.0;
+pragma solidity ^0.6.3;
 
 import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 // this creates a fake DAI token, also known as a mock token
 contract Dai is ERC20 {
-    constructor() public ERC20("DAI", "DAI Stable coin")
-        {
-            uint initialSupply = 1000000000000000000;
-            _mint(msg.sender, initialSupply);
-        }
+    constructor() ERC20("DAI Stable coin", "DAI") public {}
+
+    function faucet(address to, uint amount) external {
+      _mint(to, amount);
+    }
 }

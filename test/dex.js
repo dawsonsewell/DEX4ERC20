@@ -1,5 +1,6 @@
-// first we are going to import our mock ERC20 tokens
+const { expectRevert } = require('@openzeppelin/test-helpers');
 
+// first we are going to import our mock ERC20 tokens
 const Dai = artifacts.require('mocks/Dai.sol');
 const Bat = artifacts.require('mocks/Bat.sol');
 const Rep = artifacts.require('mocks/Rep.sol');
@@ -9,7 +10,7 @@ const Dex = artifacts.require('Dex.sol');
 // we need to extract the addresses from our local deveopment blockchain --> accounts
 
 contract('Dex', (accounts) => {
-  let dai, bat, rep, zrx;
+  let dai, bat, rep, zrx, dex;
   // we extract two account addresses specifically for testing use
   // we will not use accounts[0] b/c that is the admin of the dex
   // we want to separate the admin completely for testing other parts
@@ -34,7 +35,7 @@ contract('Dex', (accounts) => {
       Zrx.new()
     ]));
     // after our ERC20 tokens are deoployed we need to deploy our DEX
-    const dex = await Dex.new();
+    dex = await Dex.new();
     // now we need to add each token to our dex using its addToken function
     // and web3
     await Promise.all([
@@ -69,6 +70,39 @@ contract('Dex', (accounts) => {
         token => seedTokenBalance(token, trader2)
       )
     );
+  });
 
+  // testing deposit function
+  // deposit function takes amount and ticker into it -- happy path
+  it('Should deposit tokens', async() => {
+    // define the amount of token we want to deposit
+    const amount = web3.utils.toWei('100');
+
+    // make deposit using the deposit function from trader1's account
+    await dex.deposit(
+      amount,
+      DAI,
+      {from: trader1}
+    );
+
+    // now we get the DAI balance of trader1
+    const balance = await dex.traderBalances(trader1, DAI);
+
+    // now we need to assert than the amount deposited
+    // is equal to the balance of trader1
+    // Note: trader1 has 1000 wei associated with their address -- see seedTokenBalance
+    assert(balance.toString() === amount);
+  });
+
+  // deposit function takes amount and ticker into it -- Unhappy path
+  it('Should NOT deposit tokens if token does not exist', async() => {
+    await expectRevert(
+      dex.deposit(
+        web3.utils.toWei('100'),
+        web3.utils.fromAscii('TOKEN-DOES-NOT-EXIST'),
+        {from: trader1}
+      ),
+      'This token does not exist' // this is the expected error message
+    );
   });
 });
