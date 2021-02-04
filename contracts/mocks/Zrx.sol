@@ -1,6 +1,6 @@
 pragma solidity ^0.6.0;
 
-import 'https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 
 // this creates a fake Zrx token, also known as a mock token
