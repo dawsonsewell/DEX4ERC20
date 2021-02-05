@@ -7,6 +7,11 @@ const Rep = artifacts.require('mocks/Rep.sol');
 const Zrx = artifacts.require('mocks/Zrx.sol');
 const Dex = artifacts.require('Dex.sol');
 
+const SIDE = {
+  BUY: 0,
+  SELL: 1
+};
+
 // we need to extract the addresses from our local deveopment blockchain --> accounts
 
 contract('Dex', (accounts) => {
@@ -104,5 +109,97 @@ contract('Dex', (accounts) => {
       ),
       'This token does not exist' // this is the expected error message
     );
+  });
+
+  // test for withdraw funciton -- happy path, and two unhappy paths
+  it('Funds should have been withdrawn', async() => {
+    const amount = web3.utils.toWei('100');
+
+    await dex.deposit(
+      amount,
+      DAI,
+      {from: trader1}
+    );
+
+    await dex.withdraw(
+      amount,
+      DAI,
+      {from: trader1}
+    );
+
+    const [balanceDex, balanceDai] = await Promise.all([
+      dex.traderBalances(trader1, DAI),
+      dai.balanceOf(trader1)
+    ]);
+
+    assert(balanceDex.isZero());
+    assert(balanceDai.toString() === web3.utils.toWei('1000'));
+
+  });
+
+  it('Should not withdraw tokens that do not exist', async() => {
+    await expectRevert(
+      dex.withdraw(
+        web3.utils.toWei('100'),
+        web3.utils.fromAscii('TOKEN-DOES-NOT-EXIST'),
+        {from: trader1}
+      ),
+      'This token does not exist' // this is the expected error message
+    );
+  });
+
+  it('Should not withdraw if balance is too low', async() => {
+    const amount = web3.utils.toWei('100');
+
+    await dex.deposit(
+      amount,
+      DAI,
+      {from: trader1}
+    );
+
+    await expectRevert(
+      dex.withdraw(
+        web3.utils.toWei('1000'),
+        DAI,
+        {from: trader1}
+      ),
+      'balance insufficient'
+    );
+  });
+
+  // We are going to create 5 tests for testing our createLimitOrder function
+  // the first test will be the happy path and the rest are unhappy paths
+  it('Should create limit order', async() => {
+    const amount = web3.utils.toWei('100');
+
+    await dex.deposit(
+      amount,
+      DAI,
+      {from: trader1}
+    );
+
+    await dex.createLimitOrder(
+      REP,
+      web3.utils.toWei('10'),
+      10,
+      SIDE.BUY,
+      {from: trader1}
+    );
+
+    const buyOrders = await dex.getOrders(REP, SIDE.BUY);
+    const sellOrders = await dex.getOrders(REP, SIDE.SELL);
+
+    // now we need to check the expected values
+    assert(buyOrders.length === 1);
+    assert(buyOrders[0].trader === trader1);
+    // we need to pad what we get back from the smart contract with
+    // a zero to the right for the below assertion to work with
+    // a bytes32 value
+    assert(buyOrders[0].ticker === web3.utils.padRight(REP, 64));
+    assert(buyOrders[0].price === '10');
+    assert(buyOrders[0].amount === web3.utils.toWei('10'));
+    // we also need to check that we do not have a sell order b/c
+    // we did not create one yet
+    assert(sellOrders.length === 0);
   });
 });
