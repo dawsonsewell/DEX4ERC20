@@ -186,8 +186,10 @@ contract('Dex', (accounts) => {
       {from: trader1}
     );
 
-    const buyOrders = await dex.getOrders(REP, SIDE.BUY);
-    const sellOrders = await dex.getOrders(REP, SIDE.SELL);
+    // we use let to set the variable so we can redefine it
+    // later in the testing process
+    let buyOrders = await dex.getOrders(REP, SIDE.BUY);
+    let sellOrders = await dex.getOrders(REP, SIDE.SELL);
 
     // now we need to check the expected values
     assert(buyOrders.length === 1);
@@ -201,5 +203,60 @@ contract('Dex', (accounts) => {
     // we also need to check that we do not have a sell order b/c
     // we did not create one yet
     assert(sellOrders.length === 0);
+
+    // Now that we know if we create a limit order everything checks out,
+    // but what happens if we create another limit order?
+    // does everything still checkout?
+    await dex.deposit(
+      web3.utils.toWei('200'),
+      DAI,
+      {from: trader2}
+    );
+
+    await dex.createLimitOrder(
+      REP,
+      web3.utils.toWei('10'),
+      11,
+      SIDE.BUY,
+      {from: trader2}
+    );
+
+    buyOrders = await dex.getOrders(REP, SIDE.BUY);
+    sellOrders = await dex.getOrders(REP, SIDE.SELL);
+    assert(buyOrders.length === 2);
+    // trader2 should be the first order b/c our function
+    // bubble sorts the orders so the best price is always
+    // at position 0 in the array (i.e the first item in the array)
+    assert(buyOrders[0].trader === trader2);
+    assert(buyOrders[1].trader === trader1);
+    assert(buyOrders[0].price === '11');
+    assert(sellOrders.length === 0);
+
+    // now we are going to create another limit order but
+    // with a price that is lower than the first two and check
+    // to see if this order is in the correct place
+    // the limit order should work b/c trader2 should have 90 wei left to
+    // make a buy order with
+    await dex.createLimitOrder(
+      REP,
+      web3.utils.toWei('10'),
+      9,
+      SIDE.BUY,
+      {from: trader2}
+    );
+
+    buyOrders = await dex.getOrders(REP, SIDE.BUY);
+    sellOrders = await dex.getOrders(REP, SIDE.SELL);
+
+    assert(buyOrders.length === 3);
+    // trader2 should be the first order b/c our function
+    // bubble sorts the orders so the best price is always
+    // at position 0 in the array (i.e the first item in the array)
+    assert(buyOrders[0].trader === trader2);
+    assert(buyOrders[1].trader === trader1);
+    assert(buyOrders[2].trader === trader2);
+    assert(buyOrders[2].price === '9');
+    assert(sellOrders.length === 0);
   });
+
 });
