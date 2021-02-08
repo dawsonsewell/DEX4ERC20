@@ -335,4 +335,128 @@ contract('Dex', (accounts) => {
     );
   });
 
+  // now we will test 4 unhappy paths and one happy path
+  // of the createMarketOrder funciton
+
+  it('Should create market order and match existing marketorder', async() => {
+    // first we need to deposit and create a limit order
+    await dex.deposit(
+      web3.utils.toWei('100'),
+      DAI,
+      {from: trader1}
+    );
+
+    await dex.createLimitOrder(
+      REP,
+      web3.utils.toWei('10'),
+      10,
+      SIDE.BUY,
+      {from: trader1}
+    );
+
+    // Now we need to create the matching market order
+    await dex.deposit(
+      web3.utils.toWei('100'),
+      REP,
+      {from: trader2}
+    );
+
+    await dex.createMarketOrder(
+      REP,
+      web3.utils.toWei('5'),
+      SIDE.SELL,
+      {from: trader2}
+    );
+
+    // now we need to check if the market order was matched to the limit order
+    // by checking all balances
+    const balances = await Promise.all([
+      dex.traderBalances(trader1, DAI),
+      dex.traderBalances(trader1, REP),
+      dex.traderBalances(trader2, DAI),
+      dex.traderBalances(trader2, REP)
+    ]);
+
+    // we also want to check the orderBook to see that the limit order
+    // has been partially filled
+    const orders = await dex.getOrders(REP, SIDE.BUY);
+
+    // now that we have these values we can begin making assertions
+    assert(orders[0].filled === web3.utils.toWei('5')); // this is filled with the REP token from trader2
+    assert(balances[0].toString() === web3.utils.toWei('50')); // traders one bought 5 REP from trader2 for 10 DAI each
+    assert(balances[1].toString() === web3.utils.toWei('5')); // this is the amount of REP token now owned by trader1
+    assert(balances[2].toString() === web3.utils.toWei('50')); // trader2 now owns the 50 DAI earned by selling their 5 REP token for 10 wei each
+    assert(balances[3].toString() === web3.utils.toWei('95')); // trader2 only has 95 REP token left b/c they sold 5 of them
+  });
+
+  it('Should not create market order for tokens that do not exist', async() => {
+    await expectRevert(
+      dex.createMarketOrder(
+        web3.utils.fromAscii('TOKEN-DOES-NOT-EXIST'),
+        web3.utils.toWei('1000'),
+        SIDE.BUY,
+        {from:trader1}
+      ),
+      // error message from tokenExists modifier
+      'This token does not exist'
+    );
+  });
+
+  it('Should not create market order if token is DAI', async() => {
+    await expectRevert(
+      dex.createMarketOrder(
+        DAI,
+        web3.utils.toWei('1000'),
+        SIDE.BUY,
+        {from:trader1}
+      ),
+      // error message from tokenIsNotDai modifier
+      'Cannot trade DAI'
+    );
+  });
+
+  it('Should not create market order if token balance is too low', async() => {
+    await dex.deposit(
+      web3.utils.toWei('99'),
+      REP,
+      {from: trader1}
+    );
+
+    await expectRevert(
+      dex.createMarketOrder(
+        REP,
+        web3.utils.toWei('100'), // trader1 cannot sell 100 REP tokens b/c they only have 99 deposited
+        SIDE.SELL,
+        {from: trader1}
+      ),
+      'Token balance too low'
+    );
+  });
+
+  it('Should not create market order if DAI balance is too low', async() => {
+    await dex.deposit(
+      web3.utils.toWei('100'),
+      REP,
+      {from: trader1}
+    );
+
+    await dex.createLimitOrder(
+      REP,
+      web3.utils.toWei('100'),
+      10,
+      SIDE.SELL,
+      {from: trader1}
+    );
+
+    await expectRevert(
+      dex.createMarketOrder(
+        REP,
+        web3.utils.toWei('100'), // trader2 cannot buy 100 REP tokens b/c they have not deposited any DAI or do not have enough DAI deposited 
+        SIDE.BUY,
+        {from: trader2}
+      ),
+      'DAI balance too low'
+    );
+  });
+
 });
