@@ -259,4 +259,80 @@ contract('Dex', (accounts) => {
     assert(sellOrders.length === 0);
   });
 
+  // this test will test the unhappy path of the createLimitOrder function
+  // using a token that does not exist
+  it('Should NOT create limit order if token does not exist', async() => {
+    // testing using a token that does not exist
+    await expectRevert(
+      dex.createLimitOrder(
+        web3.utils.fromAscii('TOKEN-DOES-NOT-EXIST'),
+        web3.utils.toWei('1000'),
+        10,
+        SIDE.BUY,
+        {from:trader1}
+      ),
+      // error message from tokenExists modifier
+      'This token does not exist'
+    );
+  });
+
+  // this test will test the unhappy path of the createLimitOrder function
+  // using a DAI to trigger the tokenIsNotDai modifier
+  it('Should NOT create limit order if token is DAI', async() => {
+    // testing using a token that does not exist
+    await expectRevert(
+      dex.createLimitOrder(
+        DAI,
+        web3.utils.toWei('1000'),
+        10,
+        SIDE.BUY,
+        {from:trader1}
+      ),
+      // error message from tokenIsNotDai modifier
+      'Cannot trade DAI'
+    );
+  });
+
+  // test for creating a sell limit order token balance being too low
+  it('Cannot create sell limit order if token deposited token balance is too low.', async() => {
+
+    await dex.deposit(
+      web3.utils.toWei('99'),
+      REP,
+      {from: trader1}
+    );
+
+    await expectRevert(
+      dex.createLimitOrder(
+        REP,
+        web3.utils.toWei('100'),
+        10,
+        SIDE.SELL,
+        {from: trader1}
+      ),
+      'Token balance too low'
+    );
+  });
+
+  // test for creating a buy limit order without enough DAI
+  it('Cannot create buy limit order if deposited DAI balance is too low', async() => {
+
+    await dex.deposit(
+      web3.utils.toWei('99'),
+      DAI,
+      {from: trader1}
+    );
+
+    await expectRevert(
+      dex.createLimitOrder(
+        REP,
+        web3.utils.toWei('10'),
+        10,
+        SIDE.BUY,
+        {from: trader1}
+      ),
+      'DAI balance too low'
+    );
+  });
+
 });
